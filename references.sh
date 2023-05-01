@@ -42,15 +42,15 @@ help() {
 checkIfFileHasReference() {
 	echo -e "Checking if \033[3m\`$(realpath -m ${fileName} 2> /dev/null)\`\033[0m has a reference..."
 	if [ -f "$HOME/.references" ]; then
-		if cat -n $HOME/.references | awk -F ' ' '{print $4}' | grep -wFq "$(realpath -m ${fileName} 2> /dev/null)"; then
+		if cat -n $HOME/.references | awk '{print $4}' | grep -wEq "$(realpath -m ${fileName} 2> /dev/null)$"; then
 			fileHasReference=true
-			lineNumberOfTheReference=$(cat -n $HOME/.references | grep -wF "$(realpath -m ${fileName} 2> /dev/null)" | awk -F ' ' '{print $1}')
+			lineNumberOfTheReference=$(cat -n $HOME/.references | grep -wE "$(realpath -m ${fileName} 2> /dev/null)$" | awk '{print $1}')
 			echo -e "\033[36mYes, \033[3m\`$(realpath -m ${fileName} 2> /dev/null)\`\033[0m \033[36malready has a reference.\033[0m"
 		else
 			echo -e "\033[31mNo, \033[3m\`$(realpath -m ${fileName} 2> /dev/null)\`\033[0m \033[31mdoesn't have a reference.\033[0m"
 		fi
 	else
-    	echo -e "\033[31mNo, it doesn't have a reference. There are no stored references at the moment.\033[0m"
+		echo -e "\033[31mNo, it doesn't have a reference. There are no stored references at the moment.\033[0m"
 	fi
 }
 
@@ -60,7 +60,7 @@ addReference() {
 		echo -e "\033[1m\033[33m$(basename $0): Warning:\033[0m \033[3m\`$(realpath -m ${fileName} 2> /dev/null)\`\033[0m already has a reference. Skipping." >&2
 	else
 		if [[ "$(realpath -m ${fileName} 2> /dev/null)" == /dev/* ]]; then
-			if ls -l /dev | grep '^[bc]' | awk -F ' ' '{print $10}' | grep "$(basename ${fileName})" &> /dev/null
+			if ls -l /dev | grep '^[bc]' | awk '{print $10}' | grep -E "$(basename ${fileName})$" &> /dev/null
 				then echo -e "\033[1m\033[33m$(basename $0): Warning:\033[0m \033[3m\`$(realpath -m ${fileName} 2> /dev/null)\`\033[0m is a device. Skipping." >&2
 			else
 				referenceCanBeAdded=true
@@ -73,7 +73,7 @@ addReference() {
 			touch $HOME/.references
 			reference=$(openssl rand -base64 18)
 			until [ "$referenceIsNotRepeated" = true ]; do
-				if grep -wFq "${reference}" $HOME/.references
+				if cat $HOME/.references | awk '{print $1}' | grep -wEq "${reference}$"
 					then reference=$(openssl rand -base64 18)
 				else
 					referenceIsNotRepeated=true
@@ -113,16 +113,16 @@ deleteAllReferences() {
 			echo -e "\033[1m\033[31m$(basename $0): Error:\033[0m an error ocurred while deleting all the references." >&2 ; exit 1
 		fi
 	else
-    	echo -e "\033[1m\033[33m$(basename $0): Warning:\033[0m there are no stored references to delete at the moment." >&2
+		echo -e "\033[1m\033[33m$(basename $0): Warning:\033[0m there are no stored references to delete at the moment." >&2
 	fi
 }
 
 listAllReferences() {
 	if [ -f "$HOME/.references" ]; then
 		echo -e "\033[1mNumber\t\t\033[33mReference\t\t    \033[36mFile\033[0m"
-		cat -n $HOME/.references | awk -F ' ' '{print "\033[1m"$1"\033[0m\033[33m\t"$2"\033[0m \033[1m"$3"\033[0m \033[36m"$4"\033[0m"}'
+		cat -n $HOME/.references | awk '{print "\033[1m"$1"\033[0m\033[33m\t"$2"\033[0m \033[1m"$3"\033[0m \033[36m"$4"\033[0m"}'
 	else
-    	echo -e "\033[31mThere are no stored references at the moment.\033[0m"
+		echo -e "\033[31mThere are no stored references at the moment.\033[0m"
 	fi
 }
 
@@ -138,7 +138,7 @@ changeFilePermissions(){
 				exitCode=1
 			fi
 		else
-    		echo -e "\033[1m\033[33m$(basename $0): Warning:\033[0m \033[3m\`$(realpath -m ${fileName} 2> /dev/null)\`\033[0m doesn't exists." >&2
+			echo -e "\033[1m\033[33m$(basename $0): Warning:\033[0m \033[3m\`$(realpath -m ${fileName} 2> /dev/null)\`\033[0m doesn't exists." >&2
 			echo "Permissions of a non existent file cannot be modified. Skipping." >&2
 		fi
 	else
@@ -175,10 +175,6 @@ while getopts "acdDrph-:" opt; do
 	esac
 done
 
-if [[ "$*" =~ -[acdDrp]*h ]]
-	then help ; exit 0 ;
-fi
-
 if [[ "$*" == *"-- "* ]] || [[ "$*" == *"- "* ]]; then
 	echo -e "\033[1m\033[31m$(basename $0):\033[0m illegal option. Don't use space specifying an option." >&2
 	echo -e "For more information try \033[36m'$(basename $0) --help'\033[0m" >&2 ; exit 1
@@ -186,16 +182,6 @@ fi
 
 if [[ "$*" == "--" ]]; then
 	echo -e "\033[1m\033[31m$(basename $0):\033[0m illegal option: --" >&2
-	echo -e "For more information try \033[36m'$(basename $0) --help'\033[0m" >&2 ; exit 1
-fi
-
-if [[ "$*" =~ ^-[acdp][acdDrp] ]]; then
-	echo -e "\033[1m\033[31m$(basename $0): Error:\033[0m only ONE option can be set at a time." >&2
-	echo -e "For more information try \033[36m'$(basename $0) --help'\033[0m" >&2 ; exit 1 ;
-fi
-
-if [[ "$fileName" =~ -[acd] ]]; then
-	echo -e "\033[1m\033[31m$(basename $0): Error:\033[0m only ONE option can be set at a time." >&2
 	echo -e "For more information try \033[36m'$(basename $0) --help'\033[0m" >&2 ; exit 1
 fi
 
