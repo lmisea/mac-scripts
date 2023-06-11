@@ -1,0 +1,8 @@
+# This Udev rule will log all USB connections and disconnections to /home/luismi/usb-log/<date>.log
+# To use this rule, copy it to '/etc/udev/rules.d/99-usb-log.rules'
+# and reload udev rules with 'sudo udevadm control --reload-rules'
+# Written by LP (Llama Perpetua) - 2023.
+
+# Track USB connections and disconnections
+ACTION=="add", SUBSYSTEM=="usb", RUN+="/home/luismi/code/mac/usb-log.sh -f"
+ACTION=="remove", SUBSYSTEM=="usb", RUN+="/home/luismi/code/mac/usb-log.sh -f"
